@@ -7,6 +7,7 @@ require_once(JPATH_LIBRARIES . '/' .Bankconfig::BANK_PREFIX .'/vendor/autoload.p
 use DateTime;
 use Ginger\Redefiners\ClientBuilderRedefiner;
 use Ginger\Redefiners\OrderBuilderRedefiner;
+use GingerPluginSdk\Properties\Amount;
 use GingerPluginSdk\Properties\Currency;
 use JFactory;
 use JRoute;
@@ -251,6 +252,7 @@ class GingerVmPaymentPlugin extends \vmPSPlugin
         $buildOrder = (new OrderBuilderRedefiner($order, $method, $cart, $this->payment_method))->buildOrder();
         $client = (new ClientBuilderRedefiner($this->methodParametersFactory()))->createClient();
         $bankError = Bankconfig::BANK_PREFIX . '_LIB_ERROR_TRANSACTION';
+
         try {
             $gingerOrder = $client->sendOrder($buildOrder);
         } catch (\Exception $exception) {
@@ -267,6 +269,7 @@ class GingerVmPaymentPlugin extends \vmPSPlugin
                 Helper::processFalseOrderStatusResponse($html);
             }
         }
+
         JFactory::getSession()->clear(Bankconfig::BANK_PREFIX . 'ideal_issuer', 'vm');
         $dbValues['payment_name'] = $this->renderPluginName($method) . '<br />' . $method->payment_info;
         $dbValues['order_number'] = $order['details']['BT']->order_number;
@@ -284,7 +287,8 @@ class GingerVmPaymentPlugin extends \vmPSPlugin
         $virtuemartOrderNumber = Helper::getOrderNumberByGingerOrder(vRequest::get('order_id'), $this->_tablename);
         $statusSucceeded = $this->updateOrder($gingerOrder->getStatus()->get(), $virtuemartOrderId);
 
-        if ($this->payment_method == 'bank-transfer') {
+        if ($this->payment_method == 'bank-transfer')
+        {
             if ($statusSucceeded) {
                 $html = $this->renderByLayout('post_payment', array(
                     'total_to_pay' => $totalInPaymentCurrency['display'],
@@ -415,6 +419,18 @@ class GingerVmPaymentPlugin extends \vmPSPlugin
         Helper::processFalseOrderStatusResponse($html);
     }
 
+    public function plgVmOnUpdateOrderPayment($_formData)
+    {
+        // https://docs.virtuemart.net/manual/configuration-menu/order-statuses.html
+        // R - means refund, that is pre-configured statuses in system
+        if($_formData->order_status == 'R') {
+            $client = (new ClientBuilderRedefiner($this->methodParametersFactory()))->createClient();
+            $id = Helper::getGingerOrderIdByOrderId($_formData->virtuemart_order_id, $this->_tablename);
+            $amount = Helper::getAmountInCents($_formData->order_salesPrice);
+            $client->refundOrder($id, new Amount($amount));
+        }
+    }
+
     /**
      * Webhook action
      *
@@ -448,7 +464,8 @@ class GingerVmPaymentPlugin extends \vmPSPlugin
      */
     public function customInfoHTML($country = null)
     {
-        if($this->payment_method == 'afterpay') {
+        if($this->payment_method == 'afterpay')
+        {
             $selectGender = 'PLG_VMPAYMENT_' . Bankconfig::BANK_PREFIX_UPPER . 'AFTERPAY_MESSAGE_SELECT_GENDER';
             $selectMale = 'PLG_VMPAYMENT_' . Bankconfig::BANK_PREFIX_UPPER . 'AFTERPAY_MESSAGE_SELECT_GENDER_MALE';
             $selectFemale = 'PLG_VMPAYMENT_' . Bankconfig::BANK_PREFIX_UPPER . 'AFTERPAY_MESSAGE_SELECT_GENDER_FEMALE';
@@ -469,12 +486,13 @@ class GingerVmPaymentPlugin extends \vmPSPlugin
             $html .= JText::_($dob) . '<br>';
             $html .= '<input type="text" name="'. Bankconfig::BANK_PREFIX .'afterpay_dob" value="' . JFactory::getSession()->get($sessionDob, null, 'vm') . '"/>';
             $html .= '<i>('.JText::_($dateFormat).')</i></br>';
-            $html .= '<input type="checkbox" name="terms_and_confditions" '.(JFactory::getSession()->get(Bankconfig::BANK_PREFIX .'afterpay_terms_and_confditions', null, 'vm') == 'on' ? 'checked="checked"' : null).' />';
+            $html .= '<input type="checkbox" checked name="terms_and_confditions" '.(JFactory::getSession()->get(Bankconfig::BANK_PREFIX .'afterpay_terms_and_confditions', null, 'vm') == 'on' ? 'checked="checked"' : null).' />';
             $html .= '<a href="'. Helper::gettermsAndConditionsUrlByCountry($country). '" target="blank">'.JText::_($terms).'</a>';
             return $html;
         }
 
-        if ($this->payment_method == 'ideal') {
+        if ($this->payment_method == 'ideal')
+        {
             $client = (new ClientBuilderRedefiner($this->methodParametersFactory()))->createClient();
             $issuers = $client->getIdealIssuers()->toArray();
             $html = '<select name="issuer" id="issuer" class="' . $this->_name . '">';
@@ -501,7 +519,8 @@ class GingerVmPaymentPlugin extends \vmPSPlugin
         if($this->payment_method == 'apple-pay' && !Helper::applePayDetection()) {
             return false;
         }
-        if(isset($this->methods)) {
+        if(isset($this->methods))
+        {
             $currency_model = VmModel::getModel('currency');
             $displayCurrency = $currency_model->getCurrency();
             $currency = $displayCurrency->currency_code_3;
@@ -530,10 +549,11 @@ class GingerVmPaymentPlugin extends \vmPSPlugin
                         $htmlIn[] = [$html];
                         return $this->isPaymentSelected($selected);
                     }
-                    $htmla[] = $html . '<br />' . $this->customInfoHTML();
-                    $htmlIn[] = $htmla;
-                    return $this->isPaymentSelected($selected);
-
+                    else {
+                        $htmla[] = $html . '<br />' . $this->customInfoHTML();
+                        $htmlIn[] = $htmla;
+                        return $this->isPaymentSelected($selected);
+                    }
                 }
             }
         }
@@ -582,7 +602,8 @@ class GingerVmPaymentPlugin extends \vmPSPlugin
      */
     public function plgVmOnSelectCheckPayment(VirtueMartCart $cart, &$msg)
     {
-        if ($this->payment_method == 'afterpay') {
+        if ($this->payment_method == 'afterpay')
+        {
             JFactory::getSession()->set(Bankconfig::BANK_PREFIX . 'afterpay_gender', vRequest::getVar('gender'), 'vm');
             JFactory::getSession()->set(Bankconfig::BANK_PREFIX . 'afterpay_dob', vRequest::getVar(Bankconfig::BANK_PREFIX . 'afterpay_dob'), 'vm');
             JFactory::getSession()->set(Bankconfig::BANK_PREFIX . 'afterpay_terms_and_confditions', vRequest::getVar('terms_and_confditions'), 'vm');
@@ -621,10 +642,10 @@ class GingerVmPaymentPlugin extends \vmPSPlugin
      */
     protected function userIsFromAllowedCountries($country)
     {
-        if(empty($this->methodParametersFactory()->afterpayAllowedCountries())) {
+        if (empty($this->methodParametersFactory()->afterpayAllowedCountries())) {
             return true;
+        } else {
+            return in_array(strtoupper($country), $this->methodParametersFactory()->afterpayAllowedCountries());
         }
-
-        return in_array(strtoupper($country), $this->methodParametersFactory()->afterpayAllowedCountries());
     }
 }
