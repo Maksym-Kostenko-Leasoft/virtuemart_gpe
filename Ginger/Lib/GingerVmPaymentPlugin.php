@@ -486,7 +486,7 @@ class GingerVmPaymentPlugin extends \vmPSPlugin
             $html .= JText::_($dob) . '<br>';
             $html .= '<input type="text" name="'. Bankconfig::BANK_PREFIX .'afterpay_dob" value="' . JFactory::getSession()->get($sessionDob, null, 'vm') . '"/>';
             $html .= '<i>('.JText::_($dateFormat).')</i></br>';
-            $html .= '<input type="checkbox" checked name="terms_and_confditions" '.(JFactory::getSession()->get(Bankconfig::BANK_PREFIX .'afterpay_terms_and_confditions', null, 'vm') == 'on' ? 'checked="checked"' : null).' />';
+            $html .= '<input type="checkbox" name="terms_and_confditions" '.(JFactory::getSession()->get(Bankconfig::BANK_PREFIX .'afterpay_terms_and_confditions', null, 'vm') == 'on' ? 'checked="checked"' : null).' />';
             $html .= '<a href="'. Helper::gettermsAndConditionsUrlByCountry($country). '" target="blank">'.JText::_($terms).'</a>';
             return $html;
         }
